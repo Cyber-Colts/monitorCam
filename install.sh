@@ -23,4 +23,4 @@ clear
 echo "================================"
 echo "Running cam.py"
 echo "================================"
-python cam.py
+python cam.py --framerate 60
