@@ -18,7 +18,7 @@ Capture modes (--mode):
 
   sw           Software MJPEG fallback. Avoid on Pi 4 — maxes CPU.
 
-FRC port convention: 5800-5810.  Default: 5800.
+FRC port convention: 5800-5810.  Default: 80.
 
 Install
 =======
@@ -44,7 +44,7 @@ import time
 from dataclasses import dataclass, field
 from typing import Dict, Iterator, List, Optional
 
-from flask import Flask, Response, abort, render_template_string, stream_with_context
+from flask import Flask, Response, abort, render_template, stream_with_context
 from waitress import serve
 
 # ---------------------------------------------------------------------------
@@ -453,164 +453,10 @@ def manager_loop(
         w.stop()
 
 # ---------------------------------------------------------------------------
-# pretty html :)
-# ---------------------------------------------------------------------------
+# HTML templates moved to external files (templates/index.html and templates/cam.html)
 
-INDEX_TMPL = r"""<!doctype html>
-<html lang="en">
-<head>
-  <meta charset="utf-8"/>
-  <meta name="viewport" content="width=device-width,initial-scale=1"/>
-  <title>FRC Camera Hub</title>
-  <link rel="preconnect" href="https://fonts.googleapis.com"/>
-  <link href="https://fonts.googleapis.com/css2?family=Rajdhani:wght@500;700&family=Share+Tech+Mono&display=swap" rel="stylesheet"/>
-  <style>
-    :root{--green:#00ff9f;--red:#ff3b3b;--bg:#0a0e13;--surface:#111820;
-          --border:#1e2d3d;--dim:#4a6070}
-    *{box-sizing:border-box;margin:0;padding:0}
-    body{background:var(--bg);color:#c9d8e8;font-family:'Rajdhani',sans-serif;min-height:100vh;padding:16px}
-    header{display:flex;align-items:center;gap:14px;margin-bottom:20px;
-           border-bottom:1px solid var(--border);padding-bottom:12px}
-    .logo{font-size:1.5rem;font-weight:700;letter-spacing:.1em;color:var(--green);text-transform:uppercase}
-    .badge{font-family:'Share Tech Mono',monospace;font-size:.7rem;padding:2px 8px;
-           border:1px solid var(--green);color:var(--green);border-radius:2px;letter-spacing:.1em}
-    .badge.dim{border-color:var(--dim);color:var(--dim)}
-    .grid{display:grid;grid-template-columns:repeat(auto-fit,minmax(380px,1fr));gap:14px}
-    .cam-card{background:var(--surface);border:1px solid var(--border);border-radius:4px;overflow:hidden}
-    .cam-header{display:flex;align-items:center;justify-content:space-between;padding:8px 14px;
-                border-bottom:1px solid var(--border);background:rgba(0,255,159,.03)}
-    .cam-title{font-size:1rem;font-weight:700;letter-spacing:.08em;text-transform:uppercase}
-    .cam-links{display:flex;gap:8px}
-    .cam-links a{font-family:'Share Tech Mono',monospace;font-size:.68rem;color:var(--dim);
-                 text-decoration:none;padding:3px 8px;border:1px solid var(--border);
-                 border-radius:2px;transition:color .15s,border-color .15s}
-    .cam-links a:hover{color:var(--green);border-color:var(--green)}
-    .cam-img-wrap{position:relative;background:#000;aspect-ratio:4/3}
-    .cam-img-wrap img{width:100%;height:100%;object-fit:contain;display:block}
-    .cam-footer{display:flex;align-items:center;justify-content:space-between;padding:5px 14px;
-                font-family:'Share Tech Mono',monospace;font-size:.65rem;color:var(--dim);
-                border-top:1px solid var(--border)}
-    .live-dot{width:7px;height:7px;border-radius:50%;background:#333;display:inline-block;
-              margin-right:5px;transition:background .3s}
-    .live-dot.on{background:var(--green);box-shadow:0 0 6px var(--green)}
-    .empty{text-align:center;padding:80px 20px;color:var(--dim);font-family:'Share Tech Mono',monospace;
-           font-size:.85rem;grid-column:1/-1;border:1px dashed var(--border);border-radius:4px}
-  </style>
-</head>
-<body>
-  <header>
-    <div class="logo">FRC Camera Hub</div>
-    <div class="badge">{{ cam_count }} CAM{% if cam_count != 1 %}S{% endif %}</div>
-    <div class="badge dim">{{ mode.upper() }} MODE</div>
-  </header>
-  <div class="grid">
-    {% if indices %}
-      {% for idx in indices %}
-      <div class="cam-card">
-        <div class="cam-header">
-          <span class="cam-title">Camera {{ idx }}</span>
-          <div class="cam-links">
-            <a href="/cam/{{ idx }}/">Full</a>
-            <a href="/cam/{{ idx }}/snapshot.jpg" download>Snap</a>
-          </div>
-        </div>
-        <div class="cam-img-wrap">
-          <img id="img{{ idx }}" src="/cam/{{ idx }}/stream.mjpg"
-               alt="cam {{ idx }}" onerror="onErr({{ idx }})"/>
-        </div>
-        <div class="cam-footer">
-          <span><span class="live-dot" id="dot{{ idx }}"></span>
-                <span id="lbl{{ idx }}">connecting…</span></span>
-          <span id="fps{{ idx }}">—</span>
-        </div>
-      </div>
-      {% endfor %}
-    {% else %}
-      <div class="empty">NO CAMERAS DETECTED<br><br>
-        Plug in a USB camera — auto-detected in ~{{ rescan }}s.</div>
-    {% endif %}
-  </div>
-<script>
-const indices = {{ indices | tojson }};
-indices.forEach(i => {
-  const img = document.getElementById('img' + i);
-  const dot = document.getElementById('dot' + i);
-  const lbl = document.getElementById('lbl' + i);
-  const fps = document.getElementById('fps' + i);
-  let n = 0, last = performance.now();
-  img.addEventListener('load', () => {
-    n++;
-    dot.classList.add('on');
-    const now = performance.now();
-    if (now - last >= 1000) {
-      fps.textContent = (n / ((now - last) / 1000)).toFixed(1) + ' fps';
-      n = 0; last = now;
-    }
-    lbl.textContent = 'live';
-  });
-  img.addEventListener('error', () => {
-    dot.classList.remove('on');
-    lbl.textContent = 'retrying…';
-    setTimeout(() => { img.src = '/cam/' + i + '/stream.mjpg?' + Date.now(); }, 2000);
-  });
-});
-function onErr(i) {}
-</script>
-</body>
-</html>"""
 
-CAM_TMPL = r"""<!doctype html>
-<html lang="en">
-<head>
-  <meta charset="utf-8"/>
-  <meta name="viewport" content="width=device-width,initial-scale=1"/>
-  <title>Cam {{ index }}</title>
-  <link href="https://fonts.googleapis.com/css2?family=Rajdhani:wght@700&family=Share+Tech+Mono&display=swap" rel="stylesheet"/>
-  <style>
-    *{box-sizing:border-box;margin:0;padding:0}
-    body{background:#000;display:flex;flex-direction:column;height:100dvh}
-    header{display:flex;align-items:center;padding:8px 14px;gap:12px;
-           background:rgba(255,255,255,.05);flex-shrink:0}
-    header a{color:#4a6070;font-size:.8rem;text-decoration:none;font-family:'Rajdhani',sans-serif}
-    header a:hover{color:#00ff9f}
-    h1{color:#c9d8e8;font-size:.95rem;font-family:'Rajdhani',sans-serif;
-       letter-spacing:.1em;text-transform:uppercase;flex:1}
-    .pill{font-family:'Share Tech Mono',monospace;font-size:.65rem;padding:2px 10px;
-          border-radius:999px;background:#111820;color:#4a6070;border:1px solid #1e2d3d}
-    .wrap{flex:1;display:flex;align-items:center;justify-content:center;overflow:hidden}
-    img{max-width:100%;max-height:100%;object-fit:contain;display:block}
-  </style>
-</head>
-<body>
-  <header>
-    <a href="/">← Back</a>
-    <h1>Camera {{ index }}</h1>
-    <div class="pill" id="pill">connecting…</div>
-  </header>
-  <div class="wrap">
-    <img id="stream" src="/cam/{{ index }}/stream.mjpg" alt="cam {{ index }}"/>
-  </div>
-<script>
-const img = document.getElementById('stream');
-const pill = document.getElementById('pill');
-let n = 0, last = performance.now();
-img.addEventListener('load', () => {
-  n++;
-  const now = performance.now();
-  if (now - last >= 1000) {
-    pill.textContent = 'LIVE  ' + (n / ((now - last) / 1000)).toFixed(1) + ' fps';
-    pill.style.color = '#00ff9f'; pill.style.borderColor = '#00ff9f';
-    n = 0; last = now;
-  }
-});
-img.addEventListener('error', () => {
-  pill.textContent = 'reconnecting…';
-  pill.style.color = '#ff3b3b'; pill.style.borderColor = '#ff3b3b';
-  setTimeout(() => { img.src = '/cam/{{ index }}/stream.mjpg?' + Date.now(); }, 1500);
-});
-</script>
-</body>
-</html>"""
+
 
 # ---------------------------------------------------------------------------
 # Flask application
@@ -622,8 +468,8 @@ def create_app(registry: CameraRegistry, mode: str, rescan: int) -> Flask:
     @app.get("/")
     def index():
         indices = registry.list_indices()
-        return render_template_string(
-            INDEX_TMPL,
+        return render_template(
+            "index.html",
             indices=indices,
             cam_count=len(indices),
             mode=mode,
@@ -634,7 +480,7 @@ def create_app(registry: CameraRegistry, mode: str, rescan: int) -> Flask:
     def cam_view(idx: int):
         if not registry.get(idx):
             abort(404)
-        return render_template_string(CAM_TMPL, index=idx)
+        return render_template("index.html", index=idx)
 
     @app.get("/cam/<int:idx>/snapshot.jpg")
     def snapshot(idx: int):

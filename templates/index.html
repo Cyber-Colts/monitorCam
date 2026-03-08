@@ -1,36 +1,52 @@
 <!doctype html>
 <html lang="en">
 <head>
-  <meta charset="utf-8" />
-  <meta name="viewport" content="width=device-width, initial-scale=1" />
-  <title>Camera Streams</title>
+  <meta charset="utf-8"/>
+  <meta name="viewport" content="width=device-width,initial-scale=1"/>
+  <title>Cam {{ index }}</title>
+  <link href="https://fonts.googleapis.com/css2?family=Rajdhani:wght@700&family=Share+Tech+Mono&display=swap" rel="stylesheet"/>
   <style>
-    :root { color-scheme: light; }
-    body { font-family: "Fira Sans", "Helvetica Neue", Arial, sans-serif; margin: 24px; }
-    h1 { margin-bottom: 8px; }
-    .grid { display: grid; grid-template-columns: repeat(auto-fit, minmax(320px, 1fr)); gap: 16px; }
-    .cam { border: 1px solid #ddd; border-radius: 8px; padding: 12px; background: #fafafa; }
-    .links { display: flex; gap: 12px; margin-bottom: 8px; }
-    img { width: 100%; height: auto; display: block; background: #111; }
+    *{box-sizing:border-box;margin:0;padding:0}
+    body{background:#000;display:flex;flex-direction:column;height:100dvh}
+    header{display:flex;align-items:center;padding:8px 14px;gap:12px;
+           background:rgba(255,255,255,.05);flex-shrink:0}
+    header a{color:#4a6070;font-size:.8rem;text-decoration:none;font-family:'Rajdhani',sans-serif}
+    header a:hover{color:#00ff9f}
+    h1{color:#c9d8e8;font-size:.95rem;font-family:'Rajdhani',sans-serif;
+       letter-spacing:.1em;text-transform:uppercase;flex:1}
+    .pill{font-family:'Share Tech Mono',monospace;font-size:.65rem;padding:2px 10px;
+          border-radius:999px;background:#111820;color:#4a6070;border:1px solid #1e2d3d}
+    .wrap{flex:1;display:flex;align-items:center;justify-content:center;overflow:hidden}
+    img{max-width:100%;max-height:100%;object-fit:contain;display:block}
   </style>
 </head>
 <body>
-  <h1>Camera Streams</h1>
-  <div class="grid">
-    {% if indices %}
-      {% for idx in indices %}
-        <div class="cam">
-          <h2>Camera {{ idx }}</h2>
-          <div class="links">
-            <a href="/cam/{{ idx }}/">Open stream</a>
-            <a href="/cam/{{ idx }}/snapshot.jpg">Snapshot</a>
-          </div>
-          <img src="/cam/{{ idx }}/stream.mjpg" loading="lazy" />
-        </div>
-      {% endfor %}
-    {% else %}
-      <p>No cameras detected.</p>
-    {% endif %}
+  <header>
+    <a href="/">← Back</a>
+    <h1>Camera {{ index }}</h1>
+    <div class="pill" id="pill">connecting…</div>
+  </header>
+  <div class="wrap">
+    <img id="stream" src="/cam/{{ index }}/stream.mjpg" alt="cam {{ index }}"/>
   </div>
+<script>
+const img = document.getElementById('stream');
+const pill = document.getElementById('pill');
+let n = 0, last = performance.now();
+img.addEventListener('load', () => {
+  n++;
+  const now = performance.now();
+  if (now - last >= 1000) {
+    pill.textContent = 'LIVE  ' + (n / ((now - last) / 1000)).toFixed(1) + ' fps';
+    pill.style.color = '#00ff9f'; pill.style.borderColor = '#00ff9f';
+    n = 0; last = now;
+  }
+});
+img.addEventListener('error', () => {
+  pill.textContent = 'reconnecting…';
+  pill.style.color = '#ff3b3b'; pill.style.borderColor = '#ff3b3b';
+  setTimeout(() => { img.src = '/cam/{{ index }}/stream.mjpg?' + Date.now(); }, 1500);
+});
+</script>
 </body>
 </html>
