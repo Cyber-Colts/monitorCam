@@ -14,7 +14,8 @@ source venv/bin/activate
 
 # Install Python requirements
 pip3 install -r requirements.txt
-sudo apt install ffmpeg -y
+sudo apt-get install -y ffmpeg
+sleep 3
 echo "All dependencies for Raspberry Pi have been installed."
 
 clear 
