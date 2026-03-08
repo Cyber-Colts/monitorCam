@@ -1,0 +1,36 @@
+<!doctype html>
+<html lang="en">
+<head>
+  <meta charset="utf-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1" />
+  <title>Camera Streams</title>
+  <style>
+    :root { color-scheme: light; }
+    body { font-family: "Fira Sans", "Helvetica Neue", Arial, sans-serif; margin: 24px; }
+    h1 { margin-bottom: 8px; }
+    .grid { display: grid; grid-template-columns: repeat(auto-fit, minmax(320px, 1fr)); gap: 16px; }
+    .cam { border: 1px solid #ddd; border-radius: 8px; padding: 12px; background: #fafafa; }
+    .links { display: flex; gap: 12px; margin-bottom: 8px; }
+    img { width: 100%; height: auto; display: block; background: #111; }
+  </style>
+</head>
+<body>
+  <h1>Camera Streams</h1>
+  <div class="grid">
+    {% if indices %}
+      {% for idx in indices %}
+        <div class="cam">
+          <h2>Camera {{ idx }}</h2>
+          <div class="links">
+            <a href="/cam/{{ idx }}/">Open stream</a>
+            <a href="/cam/{{ idx }}/snapshot.jpg">Snapshot</a>
+          </div>
+          <img src="/cam/{{ idx }}/stream.mjpg" loading="lazy" />
+        </div>
+      {% endfor %}
+    {% else %}
+      <p>No cameras detected.</p>
+    {% endif %}
+  </div>
+</body>
+</html>
