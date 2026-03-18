@@ -26,7 +26,7 @@ Install
 
 Run
 ===
-  sudo python3 camera_server.py                   # passthrough, port 5810
+  sudo python3 camera_server.py                   # passthrough, port 544
   sudo python3 camera_server.py --mode hw         # Pi 4 VPU H.264 path
   sudo python3 camera_server.py --port 5801 --framerate 30 --width 640 --height 480
 """
@@ -701,7 +701,7 @@ def main() -> int:
         formatter_class=argparse.ArgumentDefaultsHelpFormatter,
     )
     parser.add_argument("--host",       default="0.0.0.0")
-    parser.add_argument("--port",       type=int,  default=5810,
+    parser.add_argument("--port",       type=int,  default=544,
                         help="FRC convention: 5800-5810")
     parser.add_argument("--width",      type=int,  default=640)
     parser.add_argument("--height",     type=int,  default=480)
